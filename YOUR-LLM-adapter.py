@@ -31,5 +31,5 @@ if __name__ == '__main__':
     )
     model.run_all(
         api_key = api_key,
-        model = "test"
+        model = "gpt-3.5-turbo"
     )

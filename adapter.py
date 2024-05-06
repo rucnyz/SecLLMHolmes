@@ -1,14 +1,15 @@
 import json
-import time
 import os
+import pickle
+import time
+from statistics import mode
+
+import numpy as np
 import openai
 from openai import OpenAI
-import time
-import pickle
 from rouge_score import rouge_scorer
-import numpy as np
 from tqdm import tqdm
-from statistics import mode
+
 
 class LLMAdapter:
     def __init__(self):
@@ -24,7 +25,7 @@ class LLMAdapter:
             "cwe-787": "out-of-bounds write"
         }
         # CWEs definitions from MITRE website
-        self.defs = json.loads(open("datasets/mitre-cwe-definitions.json", "r", encoding='utf-8').read())
+        self.defs = json.loads(open("datasets/mitre-cwe-definitions.json", "r", encoding = 'utf-8').read())
         # CWEs languages
         self.lang = {
             "cwe-22": "c",
@@ -112,19 +113,19 @@ class LLMAdapter:
 
         # text
         q = "Does this code contain instances of the security vulnerability known as {}?".format(cwe_name)
-        text = self.prepare_prompt(code=code, question=q, prompt="Question")
+        text = self.prepare_prompt(code = code, question = q, prompt = "Question")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
-    
+
     # Statndard Prompt 2 (ZS) (RO)
     def promptS2(self, **kwargs):
         cwe = kwargs['cwe']
         cwe_name = self.cwes[cwe]
         code = kwargs['code']
-        
+
         # system
         sys = "You are a helpful assistant."
 
@@ -133,19 +134,19 @@ class LLMAdapter:
 
         # text
         q = "Does this code contain instances of the security vulnerability known as {}?".format(cwe_name)
-        text = self.prepare_prompt(code=code, question=q, prompt="Question")
+        text = self.prepare_prompt(code = code, question = q, prompt = "Question")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
-    
+
     # Statndard Prompt 3 (ZS) (RO)
     def promptS3(self, **kwargs):
         cwe = kwargs['cwe']
         cwe_name = self.cwes[cwe]
         code = kwargs['code']
-        
+
         # system
         sys = "You are a code security expert."
 
@@ -154,30 +155,31 @@ class LLMAdapter:
 
         # text
         q = "Does this code contain instances of the security vulnerability known as {}?".format(cwe_name)
-        text = self.prepare_prompt(code=code, question=q, prompt="Question")
+        text = self.prepare_prompt(code = code, question = q, prompt = "Question")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
-    
+
     # Statndard Prompt 4 (ZS) (RO)
     def promptS4(self, **kwargs):
         cwe = kwargs['cwe']
         cwe_name = self.cwes[cwe]
         code = kwargs['code']
-        
+
         # system
-        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.".format(cwe_name)
+        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.".format(
+            cwe_name)
 
         # example
         exp = []
 
         # text
-        text = self.prepare_prompt(code=code, prompt="Analysis")
+        text = self.prepare_prompt(code = code, prompt = "Analysis")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
 
@@ -185,55 +187,58 @@ class LLMAdapter:
     def promptS5(self, **kwargs):
         cwe = kwargs['cwe']
         cwe_name = self.cwes[cwe]
-        
+
         # system
         sys = ""
 
         # example
         q = "Does this code contain instances of the security vulnerability known as {}?".format(cwe_name)
-        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        vuln_reason = open("datasets/few-shot/reasoning/{}.txt".format(cwe), "r",encoding="utf-8").read()
-        patch_reason = open("datasets/few-shot/reasoning/{}-p.txt".format(cwe), "r", encoding="utf-8").read()
-        vuln_prompt = self.prepare_prompt(code=vuln_code, question=q, prompt="Question")
-        patch_prompt = self.prepare_prompt(code=patch_code, question=q, prompt="Question")
+        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding = "utf-8").read()
+        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r",
+                          encoding = "utf-8").read()
+        vuln_reason = open("datasets/few-shot/reasoning/{}.txt".format(cwe), "r", encoding = "utf-8").read()
+        patch_reason = open("datasets/few-shot/reasoning/{}-p.txt".format(cwe), "r", encoding = "utf-8").read()
+        vuln_prompt = self.prepare_prompt(code = vuln_code, question = q, prompt = "Question")
+        patch_prompt = self.prepare_prompt(code = patch_code, question = q, prompt = "Question")
         vuln = (vuln_prompt, vuln_reason)
         patch = (patch_prompt, patch_reason)
         exp = [vuln, patch]
 
         # text
-        prompt = self.prepare_prompt(code=kwargs['code'], question=q, prompt="Question")
+        prompt = self.prepare_prompt(code = kwargs['code'], question = q, prompt = "Question")
         text = prompt
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
-    
+
     # Statndard Prompt 6 (FS) (RO)
     def promptS6(self, **kwargs):
         cwe = kwargs['cwe']
         cwe_name = self.cwes[cwe]
-        
+
         # system
-        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.".format(cwe_name)
+        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.".format(
+            cwe_name)
 
         # example
-        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        vuln_reason = open("datasets/few-shot/reasoning/{}.txt".format(cwe), "r", encoding="utf-8").read()
-        patch_reason = open("datasets/few-shot/reasoning/{}-p.txt".format(cwe), "r", encoding="utf-8").read()
-        vuln_prompt = self.prepare_prompt(code=vuln_code, prompt="Analysis")
-        patch_prompt = self.prepare_prompt(code=patch_code, prompt="Analysis")
+        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding = "utf-8").read()
+        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r",
+                          encoding = "utf-8").read()
+        vuln_reason = open("datasets/few-shot/reasoning/{}.txt".format(cwe), "r", encoding = "utf-8").read()
+        patch_reason = open("datasets/few-shot/reasoning/{}-p.txt".format(cwe), "r", encoding = "utf-8").read()
+        vuln_prompt = self.prepare_prompt(code = vuln_code, prompt = "Analysis")
+        patch_prompt = self.prepare_prompt(code = patch_code, prompt = "Analysis")
         vuln = (vuln_prompt, vuln_reason)
         patch = (patch_prompt, patch_reason)
         exp = [vuln, patch]
 
         # text
-        text = self.prepare_prompt(code=kwargs['code'], prompt="Analysis")
+        text = self.prepare_prompt(code = kwargs['code'], prompt = "Analysis")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
 
@@ -256,14 +261,14 @@ class LLMAdapter:
         # text
         q = "Does this code contain instances of the security vulnerability known as {}?".format(cwe_name)
         answer = "Let's think step by step."
-        prompt = self.prepare_prompt(code=code, question=q, answer=answer, prompt="Q/A")
+        prompt = self.prepare_prompt(code = code, question = q, answer = answer, prompt = "Q/A")
         text = prompt
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
-    
+
     # Step-by-Step Prompt 2 (ZS) (RO)
     def promptR2(self, **kwargs):
         cwe = kwargs['cwe']
@@ -271,19 +276,20 @@ class LLMAdapter:
         code = kwargs['code']
 
         # system
-        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {} following these four steps:\n1. First you describe the overview of the code\n2. Then based on the overview you identify the sub-components in code that could lead to {}\n3. After that you do a detailed analysis of the identified sub-components for the existence of the {}\n4. Based on the detailed analysis you decide and answer whether the {} is present in the given code or not".format(cwe_name, cwe_name, cwe_name + " vulnerability", cwe_name + " vulnerability")
+        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {} following these four steps:\n1. First you describe the overview of the code\n2. Then based on the overview you identify the sub-components in code that could lead to {}\n3. After that you do a detailed analysis of the identified sub-components for the existence of the {}\n4. Based on the detailed analysis you decide and answer whether the {} is present in the given code or not".format(
+            cwe_name, cwe_name, cwe_name + " vulnerability", cwe_name + " vulnerability")
 
         # example
         exp = []
 
         # text
-        text = self.prepare_prompt(code=code, prompt="Analysis")
+        text = self.prepare_prompt(code = code, prompt = "Analysis")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
-    
+
     # Step-by-Step Prompt 3 (ZS) (TO)
     def promptR3(self, **kwargs):
         cwe = kwargs['cwe']
@@ -297,25 +303,28 @@ class LLMAdapter:
         exp = []
 
         # overview
-        prompt_code = self.prepare_prompt(code=code, prompt="None")
+        prompt_code = self.prepare_prompt(code = code, prompt = "None")
         overview = "Provide a brief overview of the code."
         prompt = prompt_code + "\n\n" + overview
-        overview_response = self.chat(system=sys, examples=exp, text=prompt)
+        overview_response = self.chat(system = sys, examples = exp, text = prompt)
         exp.append((prompt, overview_response))
 
         # sub-components
-        sub_components = "Based on the overview identify the sub-components in code that could lead to a security vulnerability knows as {}.".format(cwe_name)
-        sub_response = self.chat(system=sys, examples=exp, text=sub_components)
+        sub_components = "Based on the overview identify the sub-components in code that could lead to a security vulnerability knows as {}.".format(
+            cwe_name)
+        sub_response = self.chat(system = sys, examples = exp, text = sub_components)
         exp.append((sub_components, sub_response))
 
         # detailed analysis
-        detailed_analysis = "Perform a detailed analysis of the identified sub-components for the existence of the {}.".format(cwe_name + " vulnerability")
-        analysis_response = self.chat(system=sys, examples=exp, text=detailed_analysis)
+        detailed_analysis = "Perform a detailed analysis of the identified sub-components for the existence of the {}.".format(
+            cwe_name + " vulnerability")
+        analysis_response = self.chat(system = sys, examples = exp, text = detailed_analysis)
         exp.append((detailed_analysis, analysis_response))
 
         # answer
-        answer = "Based on the detailed analysis decide and answer whether the {} is present in the given code or not.".format(cwe_name + " vulnerability")
-        ans_response = self.chat(system=sys, examples=exp, text=answer)
+        answer = "Based on the detailed analysis decide and answer whether the {} is present in the given code or not.".format(
+            cwe_name + " vulnerability")
+        ans_response = self.chat(system = sys, examples = exp, text = answer)
 
         # response
         response = "Overview:\n" + overview_response + "\n\nSub-cmponents:\n" + sub_response + "\n\nDetailed Analysis:\n" + analysis_response + "\n\nAnswer:\n" + ans_response
@@ -327,24 +336,28 @@ class LLMAdapter:
         cwe_name = self.cwes[cwe]
 
         # system
-        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.".format(cwe_name)
+        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.".format(
+            cwe_name)
 
         # example
-        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        vuln_reason = open("datasets/few-shot/step-by-step-reasoning/{}.txt".format(cwe), "r", encoding="utf-8").read()
-        patch_reason = open("datasets/few-shot/step-by-step-reasoning/{}-p.txt".format(cwe), "r", encoding="utf-8").read()
-        vuln_prompt = self.prepare_prompt(code=vuln_code, prompt="Analysis")
-        patch_prompt = self.prepare_prompt(code=patch_code, prompt="Analysis")
+        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding = "utf-8").read()
+        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r",
+                          encoding = "utf-8").read()
+        vuln_reason = open("datasets/few-shot/step-by-step-reasoning/{}.txt".format(cwe), "r",
+                           encoding = "utf-8").read()
+        patch_reason = open("datasets/few-shot/step-by-step-reasoning/{}-p.txt".format(cwe), "r",
+                            encoding = "utf-8").read()
+        vuln_prompt = self.prepare_prompt(code = vuln_code, prompt = "Analysis")
+        patch_prompt = self.prepare_prompt(code = patch_code, prompt = "Analysis")
         vuln = (vuln_prompt, vuln_reason)
         patch = (patch_prompt, patch_reason)
         exp = [vuln, patch]
 
         # text
-        text = self.prepare_prompt(code=kwargs['code'], prompt="Analysis")
+        text = self.prepare_prompt(code = kwargs['code'], prompt = "Analysis")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
 
@@ -354,51 +367,59 @@ class LLMAdapter:
         cwe_name = self.cwes[cwe]
 
         # system
-        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {} following these four steps:\n1. First you describe the overview of the code\n2. Then based on the overview you identify the sub-components in code that could lead to {}\n3. After that you do a detailed analysis of the identified sub-components for the existence of the {}\n4. Based on the detailed analysis you decide and answer whether the {} is present in the given code or not".format(cwe_name, cwe_name, cwe_name + " vulnerability", cwe_name + " vulnerability")
+        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {} following these four steps:\n1. First you describe the overview of the code\n2. Then based on the overview you identify the sub-components in code that could lead to {}\n3. After that you do a detailed analysis of the identified sub-components for the existence of the {}\n4. Based on the detailed analysis you decide and answer whether the {} is present in the given code or not".format(
+            cwe_name, cwe_name, cwe_name + " vulnerability", cwe_name + " vulnerability")
 
         # example
-        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        vuln_reason = open("datasets/few-shot/step-by-step-reasoning/{}.txt".format(cwe), "r", encoding="utf-8").read()
-        patch_reason = open("datasets/few-shot/step-by-step-reasoning/{}-p.txt".format(cwe), "r", encoding="utf-8").read()
-        vuln_prompt = self.prepare_prompt(code=vuln_code, prompt="Analysis")
-        patch_prompt = self.prepare_prompt(code=patch_code, prompt="Analysis")
+        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding = "utf-8").read()
+        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r",
+                          encoding = "utf-8").read()
+        vuln_reason = open("datasets/few-shot/step-by-step-reasoning/{}.txt".format(cwe), "r",
+                           encoding = "utf-8").read()
+        patch_reason = open("datasets/few-shot/step-by-step-reasoning/{}-p.txt".format(cwe), "r",
+                            encoding = "utf-8").read()
+        vuln_prompt = self.prepare_prompt(code = vuln_code, prompt = "Analysis")
+        patch_prompt = self.prepare_prompt(code = patch_code, prompt = "Analysis")
         vuln = (vuln_prompt, vuln_reason)
         patch = (patch_prompt, patch_reason)
         exp = [vuln, patch]
 
         # text
-        text = self.prepare_prompt(code=kwargs['code'], prompt="Analysis")
+        text = self.prepare_prompt(code = kwargs['code'], prompt = "Analysis")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
-    
+
     # Step-by-Step Prompt 6 (FS) (TO)
     def promptR6(self, **kwargs):
         cwe = kwargs['cwe']
         cwe_name = self.cwes[cwe]
 
         # system
-        sys = "Guidelines to analyze the given code for the security vulnerability known as {}:\n1. First describe the overview of the code\n2. Then based on the overview identify the sub-components in code that could lead to {}\n3. After that do a detailed analysis of the identified sub-components for the existence of the {}\n4. Based on the detailed analysis decide and answer whether the {} is present in the given code or not".format(cwe_name, cwe_name, cwe_name + " vulnerability", cwe_name + " vulnerability")
+        sys = "Guidelines to analyze the given code for the security vulnerability known as {}:\n1. First describe the overview of the code\n2. Then based on the overview identify the sub-components in code that could lead to {}\n3. After that do a detailed analysis of the identified sub-components for the existence of the {}\n4. Based on the detailed analysis decide and answer whether the {} is present in the given code or not".format(
+            cwe_name, cwe_name, cwe_name + " vulnerability", cwe_name + " vulnerability")
 
         # example
-        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        vuln_reason = open("datasets/few-shot/step-by-step-reasoning/{}.txt".format(cwe), "r", encoding="utf-8").read()
-        patch_reason = open("datasets/few-shot/step-by-step-reasoning/{}-p.txt".format(cwe), "r", encoding="utf-8").read()
-        vuln_prompt = self.prepare_prompt(code=vuln_code, prompt="Analysis")
-        patch_prompt = self.prepare_prompt(code=patch_code, prompt="Analysis")
+        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding = "utf-8").read()
+        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r",
+                          encoding = "utf-8").read()
+        vuln_reason = open("datasets/few-shot/step-by-step-reasoning/{}.txt".format(cwe), "r",
+                           encoding = "utf-8").read()
+        patch_reason = open("datasets/few-shot/step-by-step-reasoning/{}-p.txt".format(cwe), "r",
+                            encoding = "utf-8").read()
+        vuln_prompt = self.prepare_prompt(code = vuln_code, prompt = "Analysis")
+        patch_prompt = self.prepare_prompt(code = patch_code, prompt = "Analysis")
         vuln = (vuln_prompt, vuln_reason)
         patch = (patch_prompt, patch_reason)
         exp = [vuln, patch]
 
         # text
-        text = self.prepare_prompt(code=kwargs['code'], prompt="Analysis")
+        text = self.prepare_prompt(code = kwargs['code'], prompt = "Analysis")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
 
@@ -420,10 +441,10 @@ class LLMAdapter:
 
         # text
         q = "Does this code contain instances of the security vulnerability known as {}?".format(cwe_name)
-        text = self.prepare_prompt(defin=self.defs[cwe], code=code, question=q, prompt="Def")
+        text = self.prepare_prompt(defin = self.defs[cwe], code = code, question = q, prompt = "Def")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
 
@@ -434,16 +455,17 @@ class LLMAdapter:
         code = kwargs['code']
 
         # system
-        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.\n\n{}".format(cwe_name, self.defs[cwe])
+        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.\n\n{}".format(
+            cwe_name, self.defs[cwe])
 
         # example
         exp = []
 
         # text
-        text = self.prepare_prompt(code=code, prompt="Analysis")
+        text = self.prepare_prompt(code = code, prompt = "Analysis")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
 
@@ -453,24 +475,26 @@ class LLMAdapter:
         cwe_name = self.cwes[cwe]
 
         # system
-        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.\n\n{}".format(cwe_name, self.defs[cwe])
+        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.\n\n{}".format(
+            cwe_name, self.defs[cwe])
 
         # example
-        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        vuln_reason = open("datasets/few-shot/reasoning/{}.txt".format(cwe), "r", encoding="utf-8").read()
-        patch_reason = open("datasets/few-shot/reasoning/{}-p.txt".format(cwe), "r", encoding="utf-8").read()
-        vuln_prompt = self.prepare_prompt(code=vuln_code, prompt="Analysis")
-        patch_prompt = self.prepare_prompt(code=patch_code, prompt="Analysis")
+        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding = "utf-8").read()
+        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r",
+                          encoding = "utf-8").read()
+        vuln_reason = open("datasets/few-shot/reasoning/{}.txt".format(cwe), "r", encoding = "utf-8").read()
+        patch_reason = open("datasets/few-shot/reasoning/{}-p.txt".format(cwe), "r", encoding = "utf-8").read()
+        vuln_prompt = self.prepare_prompt(code = vuln_code, prompt = "Analysis")
+        patch_prompt = self.prepare_prompt(code = patch_code, prompt = "Analysis")
         vuln = (vuln_prompt, vuln_reason)
         patch = (patch_prompt, patch_reason)
         exp = [vuln, patch]
 
         # text
-        text = self.prepare_prompt(code=kwargs['code'], prompt="Analysis")
+        text = self.prepare_prompt(code = kwargs['code'], prompt = "Analysis")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
 
@@ -480,51 +504,59 @@ class LLMAdapter:
         cwe_name = self.cwes[cwe]
 
         # system
-        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.\n\n{}".format(cwe_name, self.defs[cwe])
+        sys = "You are a code security expert who analyzes the given code for the security vulnerability known as {}.\n\n{}".format(
+            cwe_name, self.defs[cwe])
 
         # example
-        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        vuln_reason = open("datasets/few-shot/step-by-step-reasoning/{}.txt".format(cwe), "r", encoding="utf-8").read()
-        patch_reason = open("datasets/few-shot/step-by-step-reasoning/{}-p.txt".format(cwe), "r", encoding="utf-8").read()
-        vuln_prompt = self.prepare_prompt(code=vuln_code, prompt="Analysis")
-        patch_prompt = self.prepare_prompt(code=patch_code, prompt="Analysis")
+        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding = "utf-8").read()
+        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r",
+                          encoding = "utf-8").read()
+        vuln_reason = open("datasets/few-shot/step-by-step-reasoning/{}.txt".format(cwe), "r",
+                           encoding = "utf-8").read()
+        patch_reason = open("datasets/few-shot/step-by-step-reasoning/{}-p.txt".format(cwe), "r",
+                            encoding = "utf-8").read()
+        vuln_prompt = self.prepare_prompt(code = vuln_code, prompt = "Analysis")
+        patch_prompt = self.prepare_prompt(code = patch_code, prompt = "Analysis")
         vuln = (vuln_prompt, vuln_reason)
         patch = (patch_prompt, patch_reason)
         exp = [vuln, patch]
 
         # text
-        text = self.prepare_prompt(code=kwargs['code'], prompt="Analysis")
+        text = self.prepare_prompt(code = kwargs['code'], prompt = "Analysis")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
-    
+
     # Definition Prompt 5 (FS) (TO)
     def promptD5(self, **kwargs):
         cwe = kwargs['cwe']
         cwe_name = self.cwes[cwe]
 
         # system
-        sys = "Analyze the given code for the security vulnerability known as {}.\n\n{}".format(cwe_name, self.defs[cwe])
+        sys = "Analyze the given code for the security vulnerability known as {}.\n\n{}".format(cwe_name,
+                                                                                                self.defs[cwe])
 
         # example
-        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r", encoding="utf-8").read()
-        vuln_reason = open("datasets/few-shot/step-by-step-reasoning/{}.txt".format(cwe), "r", encoding="utf-8").read()
-        patch_reason = open("datasets/few-shot/step-by-step-reasoning/{}-p.txt".format(cwe), "r", encoding="utf-8").read()
-        vuln_prompt = self.prepare_prompt(code=vuln_code, prompt="Analysis")
-        patch_prompt = self.prepare_prompt(code=patch_code, prompt="Analysis")
+        vuln_code = open("datasets/few-shot/examples/{}.{}".format(cwe, self.lang[cwe]), "r", encoding = "utf-8").read()
+        patch_code = open("datasets/few-shot/examples/{}-p.{}".format(cwe, self.lang[cwe]), "r",
+                          encoding = "utf-8").read()
+        vuln_reason = open("datasets/few-shot/step-by-step-reasoning/{}.txt".format(cwe), "r",
+                           encoding = "utf-8").read()
+        patch_reason = open("datasets/few-shot/step-by-step-reasoning/{}-p.txt".format(cwe), "r",
+                            encoding = "utf-8").read()
+        vuln_prompt = self.prepare_prompt(code = vuln_code, prompt = "Analysis")
+        patch_prompt = self.prepare_prompt(code = patch_code, prompt = "Analysis")
         vuln = (vuln_prompt, vuln_reason)
         patch = (patch_prompt, patch_reason)
         exp = [vuln, patch]
 
         # text
-        text = self.prepare_prompt(code=kwargs['code'], prompt="Analysis")
+        text = self.prepare_prompt(code = kwargs['code'], prompt = "Analysis")
 
         # response
-        response = self.chat(system=sys, examples=exp, text=text)
+        response = self.chat(system = sys, examples = exp, text = text)
 
         return response
 
@@ -546,7 +578,8 @@ class LLMAdapter:
     def extract_pred(self, **kwargs):
         cwe = kwargs['cwe']
         content = kwargs['text']
-        q = "As a final decision or answer, does the text state that the code contains a security vulnerability known as {}? (Answer yes or no or n/a, incase the text does not provide a definite answer)".format(self.cwes[cwe])
+        q = "As a final decision or answer, does the text state that the code contains a security vulnerability known as {}? (Answer yes or no or n/a, incase the text does not provide a definite answer)".format(
+            self.cwes[cwe])
         text = 'Text: """\n' + content + '\n"""\n' + q
 
         done, itr = False, 5
@@ -581,7 +614,8 @@ class LLMAdapter:
 
     def extract_info(self, **kwargs):
         cwe = kwargs['cwe']
-        sys = "You are a helpful assistant who extracts answer whether an instance of vulnerability is present or not and its reason 'why' from the given text in the following format:\nAnswer: ...\nReason: ...\n\nYou must follow these rules while extracting information:\n1. As a final decision or answer, does the text state that the code contains a security vulnerability known as {}? (Answer yes or no or n/a, incase the text does not provide a definite answer)\n2. If the text does not state the reason 'why' an instance of vulnerability is present or not then just write 'n/a' in reason.\n3. If the answer in 1 is 'n/a' then just write 'n/a' in reason.\n4. Only if 2 and 3 are not true then briefly describe the reasons mentioned in the text that state 'why' the code does or does not contain a security vulnerability known as {}. Max word limit for reason is 100 words. Write in terms of code, e.g., 'The code/program/function ...'".format(self.cwes[cwe], self.cwes[cwe])
+        sys = "You are a helpful assistant who extracts answer whether an instance of vulnerability is present or not and its reason 'why' from the given text in the following format:\nAnswer: ...\nReason: ...\n\nYou must follow these rules while extracting information:\n1. As a final decision or answer, does the text state that the code contains a security vulnerability known as {}? (Answer yes or no or n/a, incase the text does not provide a definite answer)\n2. If the text does not state the reason 'why' an instance of vulnerability is present or not then just write 'n/a' in reason.\n3. If the answer in 1 is 'n/a' then just write 'n/a' in reason.\n4. Only if 2 and 3 are not true then briefly describe the reasons mentioned in the text that state 'why' the code does or does not contain a security vulnerability known as {}. Max word limit for reason is 100 words. Write in terms of code, e.g., 'The code/program/function ...'".format(
+            self.cwes[cwe], self.cwes[cwe])
         content = kwargs["text"]
 
         done, itr = False, 5
@@ -608,7 +642,7 @@ class LLMAdapter:
                     content = fix_required[1]
                 itr -= 1
                 print("Retrying...")
-        
+
         pred, reason = None, None
         if done:
             response = gpt_response.choices[0].message.content
@@ -620,7 +654,7 @@ class LLMAdapter:
         return pred, reason
 
     def rouge(self, **kwargs):
-        scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True)
+        scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer = True)
         scores = scorer.score(kwargs['reason'], kwargs['ground_truth'])
         return scores['rouge1'].precision
 
@@ -629,8 +663,8 @@ class LLMAdapter:
         while not done and itr:
             try:
                 resp = self.gpt_client.embeddings.create(
-                    input=[kwargs['reason']],
-                    model="text-embedding-ada-002"
+                    input = [kwargs['reason']],
+                    model = "text-embedding-ada-002"
                 )
 
                 embedding_a = resp.data[0].embedding
@@ -642,7 +676,7 @@ class LLMAdapter:
                 print(f"Error in cos_similarity {e}")
                 itr -= 1
                 print("Retrying...")
-        
+
         similarity_score = None
         if done:
             similarity_score = np.dot(embedding_a, kwargs['ground_truth'])
@@ -683,7 +717,7 @@ class LLMAdapter:
         result_full_path = os.path.join(result_path, result_name + ".json")
 
         # Load results
-        results = json.loads(open(result_full_path, "r", encoding='utf-8').read())
+        results = json.loads(open(result_full_path, "r", encoding = 'utf-8').read())
 
         for cwe in results[prompt][temp][model]:
             for file in results[prompt][temp][model][cwe]:
@@ -697,13 +731,14 @@ class LLMAdapter:
     def handle_reason(self, r, c, g):
         ROUGE_THRES = 0.34
         COS_SIM_THRES = 0.84
-        return mode([1 if r >= ROUGE_THRES else 0, 1 if c >= COS_SIM_THRES else 0, 1 if g=='yes' else 0])
+        return mode([1 if r >= ROUGE_THRES else 0, 1 if c >= COS_SIM_THRES else 0, 1 if g == 'yes' else 0])
 
     def get_score(self, data):
         W1, W2, W3 = 0.33, 0.33, 0.33
         res_rate = data['total_answered']['val'] / (data['total_answered']['val'] + data['no_answer']['val'])
         acc_rate = data['correct']['val'] / data['total_answered']['val']
-        rea_rate = data['correct_pred_correct_reason']['val'] / (data['correct_pred_correct_reason']['val'] + data['correct_pred_incorrect_reason']['val'])
+        rea_rate = data['correct_pred_correct_reason']['val'] / (
+                data['correct_pred_correct_reason']['val'] + data['correct_pred_incorrect_reason']['val'])
         return (W1 * res_rate) + (W2 * acc_rate) + (W3 * rea_rate)
 
     def get_best_prompt(self, data, model, prompts):
@@ -722,7 +757,7 @@ class LLMAdapter:
         zr_s, zr_p = self.get_best_prompt(data, model, zr)
         ft_s, ft_p = self.get_best_prompt(data, model, ft)
         fr_s, fr_p = self.get_best_prompt(data, model, fr)
-        
+
         zs = zt_p if zt_s > zr_s else zr_p
         fs = ft_p if ft_s > fr_s else fr_p
 
@@ -743,7 +778,7 @@ class LLMAdapter:
         # Load results
         result_name = model + '.json'
         result_full_path = os.path.join(result_path, result_name)
-        results = json.loads(open(result_full_path, "r", encoding='utf-8').read())
+        results = json.loads(open(result_full_path, "r", encoding = 'utf-8').read())
 
         # metric_data
         metric_data = {}
@@ -774,7 +809,7 @@ class LLMAdapter:
                     # total answered
                     else:
                         metric_data[model][prompt]['total_answered']['val'] += 1
-                        
+
                         # correct
                         label = 0 if file[0] == 'p' else 1
                         p = 1 if pred == 'yes' else 0
@@ -783,7 +818,7 @@ class LLMAdapter:
                             correct = True
                             metric_data[model][prompt]['correct']['val'] += 1
                             metric_data[model][prompt]['correct']['id'].append((cwe, file, prompt))
-                        
+
                         # reason
                         reason = results[cwe][file][prompt]['reason']
                         if reason == 'n/a':
@@ -791,28 +826,32 @@ class LLMAdapter:
                             metric_data[model][prompt]['no_reason']['id'].append((cwe, file, prompt))
                         else:
                             metric_data[model][prompt]['total_reasoned']['val'] += 1
-                            
+
                             rouge = results[cwe][file][prompt]['rouge']
                             cos = results[cwe][file][prompt]['cos_sim']
                             gpt = results[cwe][file][prompt]['gpt_eval']
-                            
+
                             # correct reason
                             if self.handle_reason(rouge, cos, gpt) == 1:
                                 if correct:
                                     metric_data[model][prompt]['correct_pred_correct_reason']['val'] += 1
-                                    metric_data[model][prompt]['correct_pred_correct_reason']['id'].append((cwe, file, prompt))
+                                    metric_data[model][prompt]['correct_pred_correct_reason']['id'].append(
+                                        (cwe, file, prompt))
                                 else:
                                     metric_data[model][prompt]['incorrect_pred_correct_reason']['val'] += 1
-                                    metric_data[model][prompt]['incorrect_pred_correct_reason']['id'].append((cwe, file, prompt))
-                            #incorrect reason
+                                    metric_data[model][prompt]['incorrect_pred_correct_reason']['id'].append(
+                                        (cwe, file, prompt))
+                            # incorrect reason
                             else:
                                 if correct:
                                     metric_data[model][prompt]['correct_pred_incorrect_reason']['val'] += 1
-                                    metric_data[model][prompt]['correct_pred_incorrect_reason']['id'].append((cwe, file, prompt))
+                                    metric_data[model][prompt]['correct_pred_incorrect_reason']['id'].append(
+                                        (cwe, file, prompt))
                                 else:
                                     metric_data[model][prompt]['incorrect_pred_incorrect_reason']['val'] += 1
-                                    metric_data[model][prompt]['incorrect_pred_incorrect_reason']['id'].append((cwe, file, prompt))
-        
+                                    metric_data[model][prompt]['incorrect_pred_incorrect_reason']['id'].append(
+                                        (cwe, file, prompt))
+
         # get best prompts
         zs_to, zs_ro, fs_to, fs_ro = [], [], [], []
 
@@ -887,7 +926,7 @@ class LLMAdapter:
                 }
             }
         '''
-        self.gpt_client = OpenAI(api_key=kwargs['api_key'])
+        self.gpt_client = OpenAI(api_key = kwargs['api_key'])
         self.temp = kwargs['temp']
         temp = str(self.temp)
         model = kwargs['model']
@@ -902,7 +941,7 @@ class LLMAdapter:
 
         # Check if result file exists
         try:
-            with open(result_full_path, "r", encoding='utf-8') as file:
+            with open(result_full_path, "r", encoding = 'utf-8') as file:
                 file_contents = file.read()
                 results = json.loads(file_contents) if file_contents else {}
         except FileNotFoundError:
@@ -932,14 +971,14 @@ class LLMAdapter:
                 # Check if cwe exists (i.e., the test have already been run for this cwe or in the middle of it)
                 if cwe not in results[prompt][temp]:
                     results[prompt][temp][cwe] = {}
-                
+
                 # Check if file exists (i.e., the test have already been run for this file or in the middle of it)
                 if file not in results[prompt][temp][cwe]:
                     results[prompt][temp][cwe][file] = {}
 
-                code = open(cwe_path, "r", encoding='utf-8').read()
+                code = open(cwe_path, "r", encoding = 'utf-8').read()
                 # Run experiments 'k' times
-                for i in range(1, k+1):
+                for i in range(1, k + 1):
                     ix = str(i)
                     print("\nIteration {}".format(ix))
                     # Check if experiment has already been run
@@ -948,9 +987,9 @@ class LLMAdapter:
 
                     # Check if content has already been generated
                     if "content" not in results[prompt][temp][cwe][file][ix]:
-                        response = self.prompts[prompt](cwe=cwe, code=code)
+                        response = self.prompts[prompt](cwe = cwe, code = code)
                         if not response:
-                            open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                            open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                             return
                         results[prompt][temp][cwe][file][ix]["content"] = response
                     print("Response done!!")
@@ -959,18 +998,20 @@ class LLMAdapter:
                     # If do_reason is False then only extract pred
                     if not do_reason and do_extract:
                         if "pred" not in results[prompt][temp][cwe][file][ix]:
-                            pred = self.extract_pred(cwe=cwe, text=results[prompt][temp][cwe][file][ix]["content"])
-                            if pred == None:
-                                open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                            pred = self.extract_pred(cwe = cwe, text = results[prompt][temp][cwe][file][ix]["content"])
+                            if pred is None:
+                                open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                 return
                             results[prompt][temp][cwe][file][ix]["pred"] = pred
                         print("Extraction done!!")
                     # If do_reason is True then extract pred and reason
                     if do_reason:
-                        if "pred" not in results[prompt][temp][cwe][file][ix] or "reason" not in results[prompt][temp][cwe][file][ix]:
-                            pred, reason = self.extract_info(cwe=cwe, text=results[prompt][temp][cwe][file][ix]["content"])
-                            if pred == None or reason == None:
-                                open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                        if "pred" not in results[prompt][temp][cwe][file][ix] or "reason" not in \
+                                results[prompt][temp][cwe][file][ix]:
+                            pred, reason = self.extract_info(cwe = cwe,
+                                                             text = results[prompt][temp][cwe][file][ix]["content"])
+                            if pred is None or reason is None:
+                                open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                 return
                             results[prompt][temp][cwe][file][ix]["pred"] = pred
                             results[prompt][temp][cwe][file][ix]["reason"] = reason
@@ -983,37 +1024,53 @@ class LLMAdapter:
                             results[prompt][temp][cwe][file][ix]["gpt_eval"] = None
 
                         # Evaluate using ground truth
-                        gt = open(os.path.join(dataset_path, 'ground-truth', cwe.upper(), file.split(".")[0] + ".txt"), "r", encoding='utf-8').read()
-                        
+                        gt = open(os.path.join(dataset_path, 'ground-truth', cwe.upper(), file.split(".")[0] + ".txt"),
+                                  "r", encoding = 'utf-8').read()
+
                         # 1) Compute rouge score
                         if "rouge" not in results[prompt][temp][cwe][file][ix]:
-                            rouge_score = self.rouge(reason=results[prompt][temp][cwe][file][ix]["reason"], ground_truth=gt)
+                            rouge_score = self.rouge(reason = results[prompt][temp][cwe][file][ix]["reason"],
+                                                     ground_truth = gt)
                             results[prompt][temp][cwe][file][ix]["rouge"] = rouge_score
                         print("Rouge done!!")
-                        
+
                         # 2) Compute cosine similarity
                         if "cos_sim" not in results[prompt][temp][cwe][file][ix]:
-                            gt_emb = None
-                            with open(os.path.join(dataset_path, 'embeddings', cwe.upper(), file.split(".")[0]), "rb") as f:
+                            file_path = os.path.join(dataset_path, 'embeddings', cwe.upper(), file.split(".")[0])
+                            with open(file_path, "rb") as f:
                                 gt_emb = pickle.load(f)
-                            cos_sim = self.cos_similarity(reason=results[prompt][temp][cwe][file][ix]["reason"], ground_truth=gt_emb)
-                            if cos_sim == None:
-                                open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                            # for compatibility with old embeddings
+                            if len(gt_emb) == 12288:
+                                print("Updating embeddings for {}".format(file))
+                                resp = self.gpt_client.embeddings.create(
+                                    input = [gt],
+                                    model = "text-embedding-ada-002"
+                                )
+                                gt_new = resp.data[0].embedding
+                                # save back
+                                with open(file_path, "wb") as f:
+                                    pickle.dump(gt_new, f)
+                                gt_emb = gt_new
+                            cos_sim = self.cos_similarity(reason = results[prompt][temp][cwe][file][ix]["reason"],
+                                                          ground_truth = gt_emb)
+                            if cos_sim is None:
+                                open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                 return
                             results[prompt][temp][cwe][file][ix]["cos_sim"] = cos_sim
                         print("Cosine similarity done!!")
-                        
+
                         # 3) Compute gpt evaluation
                         if "gpt_eval" not in results[prompt][temp][cwe][file][ix]:
-                            gpt_eval = self.gpt_eval(reason=results[prompt][temp][cwe][file][ix]["reason"], ground_truth=gt)
+                            gpt_eval = self.gpt_eval(reason = results[prompt][temp][cwe][file][ix]["reason"],
+                                                     ground_truth = gt)
                             if not gpt_eval:
-                                open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                 return
                             results[prompt][temp][cwe][file][ix]["gpt_eval"] = gpt_eval
                         print("GPT evaluation done!!")
         finally:
             # Save results
-            open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+            open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
 
     def run_prompts_experiments(self, **kwargs):
         '''
@@ -1051,13 +1108,14 @@ class LLMAdapter:
                     ...
                 },
         '''
-        self.gpt_client = OpenAI(api_key=kwargs['api_key'])
+        self.gpt_client = OpenAI(api_key = kwargs['api_key'])
         self.temp = kwargs['temp']
         model = kwargs['model']
         dataset_path = kwargs['dataset_path']
         result_path = kwargs['result_path']
         result_full_path = os.path.join(result_path, model + ".json")
-        results = {} if os.path.isfile(result_full_path) == False else json.loads(open(result_full_path, "r", encoding='utf-8').read())
+        results = {} if os.path.isfile(result_full_path) == False else json.loads(
+            open(result_full_path, "r", encoding = 'utf-8').read())
 
         try:
             print("\nRunning experiment for {}".format(model))
@@ -1067,7 +1125,7 @@ class LLMAdapter:
                 cwe = dir.lower()
                 if cwe not in self.cwes:
                     continue
-                
+
                 print("\nRunning experiment for {}".format(cwe))
                 if cwe not in results:
                     results[cwe] = {}
@@ -1081,9 +1139,9 @@ class LLMAdapter:
                         # Check if file exists
                         if file not in results[cwe]:
                             results[cwe][file] = {}
-                        
+
                         # Get code
-                        code = open(os.path.join(dataset_path, 'dataset', dir, file), "r", encoding='utf-8').read()
+                        code = open(os.path.join(dataset_path, 'dataset', dir, file), "r", encoding = 'utf-8').read()
 
                         # Run all prompts
                         for prompt in self.prompts:
@@ -1091,9 +1149,9 @@ class LLMAdapter:
                             if prompt not in results[cwe][file]:
                                 results[cwe][file][prompt] = {}
                             if "content" not in results[cwe][file][prompt]:
-                                response = self.prompts[prompt](cwe=cwe, code=code)
+                                response = self.prompts[prompt](cwe = cwe, code = code)
                                 if not response:
-                                    open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                    open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                     return
                                 results[cwe][file][prompt]["content"] = response
                                 results[cwe][file][prompt]["label"] = label
@@ -1101,9 +1159,10 @@ class LLMAdapter:
 
                             # Extract info
                             if "pred" not in results[cwe][file][prompt] or "reason" not in results[cwe][file][prompt]:
-                                pred, reason = self.extract_info(cwe=cwe, text=results[cwe][file][prompt]["content"])
-                                if pred == None or reason == None:
-                                    open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                pred, reason = self.extract_info(cwe = cwe,
+                                                                 text = results[cwe][file][prompt]["content"])
+                                if pred is None or reason is None:
+                                    open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                     return
                                 results[cwe][file][prompt]["pred"] = pred
                                 results[cwe][file][prompt]["reason"] = reason
@@ -1116,37 +1175,43 @@ class LLMAdapter:
                                 results[cwe][file][prompt]["gpt_eval"] = None
 
                             # Evaluate using ground truth
-                            gt = open(os.path.join(dataset_path, 'ground-truth', cwe.upper(), file.split(".")[0] + ".txt"), "r", encoding='utf-8').read()
+                            gt = open(
+                                os.path.join(dataset_path, 'ground-truth', cwe.upper(), file.split(".")[0] + ".txt"),
+                                "r", encoding = 'utf-8').read()
 
                             # 1) Compute rouge score
                             if "rouge" not in results[cwe][file][prompt]:
-                                rouge_score = self.rouge(reason=results[cwe][file][prompt]["reason"], ground_truth=gt)
+                                rouge_score = self.rouge(reason = results[cwe][file][prompt]["reason"],
+                                                         ground_truth = gt)
                                 results[cwe][file][prompt]["rouge"] = rouge_score
                             print("Rouge done!!")
 
                             # 2) Compute cosine similarity
                             if "cos_sim" not in results[cwe][file][prompt]:
                                 gt_emb = None
-                                with open(os.path.join(dataset_path, 'embeddings', cwe.upper(), file.split(".")[0]), "rb") as f:
+                                with open(os.path.join(dataset_path, 'embeddings', cwe.upper(), file.split(".")[0]),
+                                          "rb") as f:
                                     gt_emb = pickle.load(f)
-                                cos_sim = self.cos_similarity(reason=results[cwe][file][prompt]["reason"], ground_truth=gt_emb)
-                                if cos_sim == None:
-                                    open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                cos_sim = self.cos_similarity(reason = results[cwe][file][prompt]["reason"],
+                                                              ground_truth = gt_emb)
+                                if cos_sim is None:
+                                    open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                     return
                                 results[cwe][file][prompt]["cos_sim"] = cos_sim
                             print("Cosine similarity done!!")
 
                             # 3) Compute gpt evaluation
                             if "gpt_eval" not in results[cwe][file][prompt]:
-                                gpt_eval = self.gpt_eval(reason=results[cwe][file][prompt]["reason"], ground_truth=gt)
+                                gpt_eval = self.gpt_eval(reason = results[cwe][file][prompt]["reason"],
+                                                         ground_truth = gt)
                                 if not gpt_eval:
-                                    open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                    open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                     return
                                 results[cwe][file][prompt]["gpt_eval"] = gpt_eval
                             print("GPT evaluation done!!")
         finally:
             # Save results
-            open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+            open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
 
     def run_trivial_robustness_experiments(self, **kwargs):
         '''
@@ -1190,7 +1255,7 @@ class LLMAdapter:
                 ...
             }
         '''
-        self.gpt_client = OpenAI(api_key=kwargs['api_key'])
+        self.gpt_client = OpenAI(api_key = kwargs['api_key'])
         self.temp = kwargs['temp']
         model = kwargs['model']
         prompt = kwargs['prompt']
@@ -1198,13 +1263,14 @@ class LLMAdapter:
         dataset_path = kwargs['dataset_path']
         result_path = kwargs['result_path']
         result_full_path = os.path.join(result_path, model + ".json")
-        results = {} if os.path.isfile(result_full_path) == False else json.loads(open(result_full_path, "r", encoding='utf-8').read())
+        results = {} if os.path.isfile(result_full_path) == False else json.loads(
+            open(result_full_path, "r", encoding = 'utf-8').read())
 
         try:
             # Scenarios
             if scenario not in results:
                 results[scenario] = {}
-            
+
             # Run all dirs (Augmentations)
             for A in os.listdir(dataset_path):
                 # Check for dir name
@@ -1215,7 +1281,7 @@ class LLMAdapter:
                 # Check if A exists
                 if A not in results[scenario]:
                     results[scenario][A] = {}
-                
+
                 data_path = os.path.join(dataset_path, A, 'dataset')
                 gt_path = os.path.join(dataset_path, A, 'ground_truth')
                 emb_path = os.path.join(dataset_path, A, 'embeddings')
@@ -1241,7 +1307,8 @@ class LLMAdapter:
                             if cwe not in results[scenario]['A0']:
                                 results[scenario]['A0'][cwe] = {}
                             if file not in results[scenario]['A0'][cwe]:
-                                prompts_data = json.loads(open(os.path.join('results/prompts', model + '.json'), "r", encoding='utf-8').read())
+                                prompts_data = json.loads(open(os.path.join('results/prompts', model + '.json'), "r",
+                                                               encoding = 'utf-8').read())
                                 results[scenario]['A0'][cwe][file] = prompts_data[cwe][file][prompt]
 
                             label = 0 if file[0] == 'p' else 1
@@ -1249,25 +1316,27 @@ class LLMAdapter:
                             # Check if file exists
                             if file not in results[scenario][A][cwe]:
                                 results[scenario][A][cwe][file] = {}
-                            
+
                             # Get code
-                            code = open(os.path.join(data_path, cwe.upper(), file), "r", encoding='utf-8').read()
+                            code = open(os.path.join(data_path, cwe.upper(), file), "r", encoding = 'utf-8').read()
 
                             # Run experiment
                             if "content" not in results[scenario][A][cwe][file]:
-                                response = self.prompts[prompt](cwe=cwe, code=code)
+                                response = self.prompts[prompt](cwe = cwe, code = code)
                                 if not response:
-                                    open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                    open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                     return
                                 results[scenario][A][cwe][file]["content"] = response
                                 results[scenario][A][cwe][file]["label"] = label
                             print("Response done!!")
 
                             # Extract info
-                            if "pred" not in results[scenario][A][cwe][file] or "reason" not in results[scenario][A][cwe][file]:
-                                pred, reason = self.extract_info(cwe=cwe, text=results[scenario][A][cwe][file]["content"])
-                                if pred == None or reason == None:
-                                    open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                            if "pred" not in results[scenario][A][cwe][file] or "reason" not in \
+                                    results[scenario][A][cwe][file]:
+                                pred, reason = self.extract_info(cwe = cwe,
+                                                                 text = results[scenario][A][cwe][file]["content"])
+                                if pred is None or reason is None:
+                                    open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                     return
                                 results[scenario][A][cwe][file]["pred"] = pred
                                 results[scenario][A][cwe][file]["reason"] = reason
@@ -1284,7 +1353,8 @@ class LLMAdapter:
 
                             # 1) Compute rouge score
                             if "rouge" not in results[scenario][A][cwe][file]:
-                                rouge_score = self.rouge(reason=results[scenario][A][cwe][file]["reason"], ground_truth=gt)
+                                rouge_score = self.rouge(reason = results[scenario][A][cwe][file]["reason"],
+                                                         ground_truth = gt)
                                 results[scenario][A][cwe][file]["rouge"] = rouge_score
                             print("Rouge done!!")
 
@@ -1293,24 +1363,26 @@ class LLMAdapter:
                                 gt_emb = None
                                 with open(os.path.join(emb_path, cwe.upper(), file.split(".")[0]), "rb") as f:
                                     gt_emb = pickle.load(f)
-                                cos_sim = self.cos_similarity(reason=results[scenario][A][cwe][file]["reason"], ground_truth=gt_emb)
-                                if cos_sim == None:
-                                    open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                cos_sim = self.cos_similarity(reason = results[scenario][A][cwe][file]["reason"],
+                                                              ground_truth = gt_emb)
+                                if cos_sim is None:
+                                    open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                     return
                                 results[scenario][A][cwe][file]["cos_sim"] = cos_sim
                             print("Cosine similarity done!!")
 
                             # 3) Compute gpt evaluation
                             if "gpt_eval" not in results[scenario][A][cwe][file]:
-                                gpt_eval = self.gpt_eval(reason=results[scenario][A][cwe][file]["reason"], ground_truth=gt)
+                                gpt_eval = self.gpt_eval(reason = results[scenario][A][cwe][file]["reason"],
+                                                         ground_truth = gt)
                                 if not gpt_eval:
-                                    open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                    open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                     return
                                 results[scenario][A][cwe][file]["gpt_eval"] = gpt_eval
                             print("GPT evaluation done!!")
         finally:
             # Save results
-            open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+            open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
 
     def run_non_trivial_robustness_experiments(self, **kwargs):
         '''
@@ -1357,7 +1429,7 @@ class LLMAdapter:
                 ...
             }
         '''
-        self.gpt_client = OpenAI(api_key=kwargs['api_key'])
+        self.gpt_client = OpenAI(api_key = kwargs['api_key'])
         self.temp = kwargs['temp']
         model = kwargs['model']
         prompt = kwargs['prompt']
@@ -1365,7 +1437,8 @@ class LLMAdapter:
         dataset_path = kwargs['dataset_path']
         result_path = kwargs['result_path']
         result_full_path = os.path.join(result_path, model + ".json")
-        results = {} if os.path.isfile(result_full_path) == False else json.loads(open(result_full_path, "r", encoding='utf-8').read())
+        results = {} if os.path.isfile(result_full_path) == False else json.loads(
+            open(result_full_path, "r", encoding = 'utf-8').read())
 
         aug_test = {
             "A1": {
@@ -1404,7 +1477,7 @@ class LLMAdapter:
             # Scenarios
             if scenario not in results:
                 results[scenario] = {}
-            
+
             # Run all dirs (Augmentations)
             for A in os.listdir(dataset_path):
                 # Check for dir name
@@ -1444,25 +1517,30 @@ class LLMAdapter:
                                 # Check if file exists
                                 if file not in results[scenario][A][t][cwe]:
                                     results[scenario][A][t][cwe][file] = {}
-                                
+
                                 # Get code
-                                code = open(os.path.join(data_path, cwe.upper(), file), "r", encoding='utf-8').read()
+                                code = open(os.path.join(data_path, cwe.upper(), file), "r", encoding = 'utf-8').read()
 
                                 # Run experiment
                                 if "content" not in results[scenario][A][t][cwe][file]:
-                                    response = self.prompts[prompt](cwe=aug_test[A][cwe], code=code)
+                                    response = self.prompts[prompt](cwe = aug_test[A][cwe], code = code)
                                     if not response:
-                                        open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                        open(result_full_path, "w").write(
+                                            json.dumps(results, indent = 4, sort_keys = True))
                                         return
                                     results[scenario][A][t][cwe][file]["content"] = response
                                     results[scenario][A][t][cwe][file]["label"] = label
                                 print("Response done!!")
 
                                 # Extract info
-                                if "pred" not in results[scenario][A][t][cwe][file] or "reason" not in results[scenario][A][t][cwe][file]:
-                                    pred, reason = self.extract_info(cwe=cwe, text=results[scenario][A][t][cwe][file]["content"])
-                                    if pred == None or reason == None:
-                                        open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                if "pred" not in results[scenario][A][t][cwe][file] or "reason" not in \
+                                        results[scenario][A][t][cwe][file]:
+                                    pred, reason = self.extract_info(cwe = cwe,
+                                                                     text = results[scenario][A][t][cwe][file][
+                                                                         "content"])
+                                    if pred is None or reason is None:
+                                        open(result_full_path, "w").write(
+                                            json.dumps(results, indent = 4, sort_keys = True))
                                         return
                                     results[scenario][A][t][cwe][file]["pred"] = pred
                                     results[scenario][A][t][cwe][file]["reason"] = reason
@@ -1475,13 +1553,14 @@ class LLMAdapter:
                                     results[scenario][A][t][cwe][file]["gpt_eval"] = None
 
                                 # Evaluate using ground truth
-                                gt = open(os.path.join(gt_path, cwe.upper(), file.split(".")[0] + ".txt"), "r", encoding='utf-8').read()
+                                gt = open(os.path.join(gt_path, cwe.upper(), file.split(".")[0] + ".txt"), "r",
+                                          encoding = 'utf-8').read()
 
                                 # 1) Compute rouge score
                                 if "rouge" not in results[scenario][A][t][cwe][file]:
                                     rouge_score = self.rouge(
-                                        reason=results[scenario][A][t][cwe][file]["reason"], 
-                                        ground_truth=gt
+                                        reason = results[scenario][A][t][cwe][file]["reason"],
+                                        ground_truth = gt
                                     )
                                     results[scenario][A][t][cwe][file]["rouge"] = rouge_score
                                 print("Rouge done!!")
@@ -1492,11 +1571,12 @@ class LLMAdapter:
                                     with open(os.path.join(emb_path, cwe.upper(), file.split(".")[0]), "rb") as f:
                                         gt_emb = pickle.load(f)
                                     cos_sim = self.cos_similarity(
-                                        reason=results[scenario][A][t][cwe][file]["reason"], 
-                                        ground_truth=gt_emb
+                                        reason = results[scenario][A][t][cwe][file]["reason"],
+                                        ground_truth = gt_emb
                                     )
-                                    if cos_sim == None:
-                                        open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                    if cos_sim is None:
+                                        open(result_full_path, "w").write(
+                                            json.dumps(results, indent = 4, sort_keys = True))
                                         return
                                     results[scenario][A][t][cwe][file]["cos_sim"] = cos_sim
                                 print("Cosine similarity done!!")
@@ -1504,17 +1584,18 @@ class LLMAdapter:
                                 # 3) Compute gpt evaluation
                                 if "gpt_eval" not in results[scenario][A][t][cwe][file]:
                                     gpt_eval = self.gpt_eval(
-                                        reason=results[scenario][A][t][cwe][file]["reason"], 
-                                        ground_truth=gt
+                                        reason = results[scenario][A][t][cwe][file]["reason"],
+                                        ground_truth = gt
                                     )
                                     if not gpt_eval:
-                                        open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                        open(result_full_path, "w").write(
+                                            json.dumps(results, indent = 4, sort_keys = True))
                                         return
                                     results[scenario][A][t][cwe][file]["gpt_eval"] = gpt_eval
                                 print("GPT evaluation done!!")
         finally:
             # Save results
-            open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+            open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
 
     def run_real_world_experiments(self, **kwargs):
         '''
@@ -1558,7 +1639,7 @@ class LLMAdapter:
                 ...
             }
         '''
-        self.gpt_client = OpenAI(api_key=kwargs['api_key'])
+        self.gpt_client = OpenAI(api_key = kwargs['api_key'])
         self.temp = kwargs['temp']
         model = kwargs['model']
         prompt = kwargs['prompt']
@@ -1566,9 +1647,10 @@ class LLMAdapter:
         dataset_path = kwargs['dataset_path']
         result_path = kwargs['result_path']
         result_full_path = os.path.join(result_path, model + ".json")
-        results = {} if os.path.isfile(result_full_path) == False else json.loads(open(result_full_path, "r", encoding='utf-8').read())
+        results = {} if os.path.isfile(result_full_path) == False else json.loads(
+            open(result_full_path, "r", encoding = 'utf-8').read())
 
-        cve_details = json.loads(open(os.path.join(dataset_path, 'cve_details.json'), "r", encoding='utf-8').read())
+        cve_details = json.loads(open(os.path.join(dataset_path, 'cve_details.json'), "r", encoding = 'utf-8').read())
 
         try:
             print("\nRunning experiment for {}".format(scenario))
@@ -1583,7 +1665,7 @@ class LLMAdapter:
                 # Check if project exists
                 if project not in results:
                     results[project] = {}
-                
+
                 project_path = os.path.join(dataset_path, project)
                 # Run for all CVEs
                 for cve in os.listdir(project_path):
@@ -1591,7 +1673,7 @@ class LLMAdapter:
                     # Check if cve exists
                     if cve not in results[project]:
                         results[project][cve] = {}
-                    
+
                     cve_path = os.path.join(project_path, cve)
                     # Run for both 'vuln' and 'patch' files
                     for file in ['vuln', 'patch']:
@@ -1603,28 +1685,30 @@ class LLMAdapter:
                         # Check if scenario exists
                         if scenario not in results[project][cve][file]:
                             results[project][cve][file][scenario] = {}
-                        
+
                         file_path = os.path.join(cve_path, file + '.c')
                         gt_path = os.path.join(cve_path, file + '.txt')
                         emb_path = os.path.join(cve_path, file)
 
                         # Get code
-                        code = open(file_path, "r", encoding='utf-8').read()
+                        code = open(file_path, "r", encoding = 'utf-8').read()
 
                         # Run experiment
                         if "content" not in results[project][cve][file][scenario]:
-                            response = self.prompts[prompt](cwe=cve_details[project.lower()][cve]["cwe"], code=code)
+                            response = self.prompts[prompt](cwe = cve_details[project.lower()][cve]["cwe"], code = code)
                             if not response:
-                                open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                 return
                             results[project][cve][file][scenario]["content"] = response
                         print("Response done!!")
 
                         # Extract info
-                        if "pred" not in results[project][cve][file][scenario] or "reason" not in results[project][cve][file][scenario]:
-                            pred, reason = self.extract_info(cwe=cve_details[project.lower()][cve]["cwe"], text=results[project][cve][file][scenario]["content"])
-                            if pred == None or reason == None:
-                                open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                        if "pred" not in results[project][cve][file][scenario] or "reason" not in \
+                                results[project][cve][file][scenario]:
+                            pred, reason = self.extract_info(cwe = cve_details[project.lower()][cve]["cwe"],
+                                                             text = results[project][cve][file][scenario]["content"])
+                            if pred is None or reason is None:
+                                open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                 return
                             results[project][cve][file][scenario]["pred"] = pred
                             results[project][cve][file][scenario]["reason"] = reason
@@ -1637,13 +1721,13 @@ class LLMAdapter:
                             results[project][cve][file][scenario]["gpt_eval"] = None
 
                         # Evaluate using ground truth
-                        gt = open(gt_path, "r", encoding='utf-8').read()
+                        gt = open(gt_path, "r", encoding = 'utf-8').read()
 
                         # 1) Compute rouge score
                         if "rouge" not in results[project][cve][file][scenario]:
                             rouge_score = self.rouge(
-                                reason=results[project][cve][file][scenario]["reason"], 
-                                ground_truth=gt
+                                reason = results[project][cve][file][scenario]["reason"],
+                                ground_truth = gt
                             )
                             results[project][cve][file][scenario]["rouge"] = rouge_score
                         print("Rouge done!!")
@@ -1654,11 +1738,11 @@ class LLMAdapter:
                             with open(emb_path, "rb") as f:
                                 gt_emb = pickle.load(f)
                             cos_sim = self.cos_similarity(
-                                reason=results[project][cve][file][scenario]["reason"], 
-                                ground_truth=gt_emb
+                                reason = results[project][cve][file][scenario]["reason"],
+                                ground_truth = gt_emb
                             )
-                            if cos_sim == None:
-                                open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                            if cos_sim is None:
+                                open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                 return
                             results[project][cve][file][scenario]["cos_sim"] = cos_sim
                         print("Cosine similarity done!!")
@@ -1666,17 +1750,17 @@ class LLMAdapter:
                         # 3) Compute gpt evaluation
                         if "gpt_eval" not in results[project][cve][file][scenario]:
                             gpt_eval = self.gpt_eval(
-                                reason=results[project][cve][file][scenario]["reason"], 
-                                ground_truth=gt
+                                reason = results[project][cve][file][scenario]["reason"],
+                                ground_truth = gt
                             )
                             if not gpt_eval:
-                                open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+                                open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                 return
                             results[project][cve][file][scenario]["gpt_eval"] = gpt_eval
                         print("GPT evaluation done!!")
         finally:
             # Save results
-            open(result_full_path, "w").write(json.dumps(results, indent=4, sort_keys=True))
+            open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
 
     def run_all(self, **kwargs):
         '''
@@ -1714,21 +1798,21 @@ class LLMAdapter:
             # Run on specific temperatures
             for temp in [0.2, 0.0]:
                 self.run_temp_test(
-                    api_key=api_key,
-                    temp=temp,
-                    model=model,
-                    k=10,
-                    do_reason=True,
-                    do_extract=True,
-                    cwe_files=cwe_files,
-                    prompt=prompt,
-                    dataset_path=os.path.join(dataset_path, 'hand-crafted'),
-                    result_path=det_res_result_path
+                    api_key = api_key,
+                    temp = temp,
+                    model = model,
+                    k = 10,
+                    do_reason = True,
+                    do_extract = True,
+                    cwe_files = cwe_files,
+                    prompt = prompt,
+                    dataset_path = os.path.join(dataset_path, 'hand-crafted'),
+                    result_path = det_res_result_path
                 )
         print("\n#######################################")
         print("Deterministic Responses Experiment done!!")
         print("#######################################\n")
-        
+
         ### Range of Parameters Experiment!!
         print("\n#######################################")
         print("Range of Parameters Experiment!!")
@@ -1743,16 +1827,16 @@ class LLMAdapter:
         temps = [0.2, 0.0, 0.25, 0.5, 0.75, 1.0]
         for temp in temps:
             self.run_temp_test(
-                api_key=api_key,
-                temp=temp,
-                model=model,
-                k=10,
-                do_reason=True,
-                do_extract=True,
-                cwe_files=cwe_files,
-                prompt=prompt,
-                dataset_path=os.path.join(dataset_path, 'hand-crafted'),
-                result_path=range_param_result_path
+                api_key = api_key,
+                temp = temp,
+                model = model,
+                k = 10,
+                do_reason = True,
+                do_extract = True,
+                cwe_files = cwe_files,
+                prompt = prompt,
+                dataset_path = os.path.join(dataset_path, 'hand-crafted'),
+                result_path = range_param_result_path
             )
         print("\n#######################################")
         print("Range of Parameters Experiment done!!")
@@ -1768,11 +1852,11 @@ class LLMAdapter:
         os.system('mkdir ' + prompts_result_path)
         # Run on all prompts
         self.run_prompts_experiments(
-            api_key=api_key,
-            temp=0.0,
-            model=model,
-            dataset_path=os.path.join(dataset_path, 'hand-crafted'),
-            result_path=prompts_result_path
+            api_key = api_key,
+            temp = 0.0,
+            model = model,
+            dataset_path = os.path.join(dataset_path, 'hand-crafted'),
+            result_path = prompts_result_path
         )
         print("\n#######################################")
         print("Prompts Experiment done!!")
@@ -1783,9 +1867,10 @@ class LLMAdapter:
         if not os.path.isfile(best_prompts_path):
             best_prompts_loaded = {}
         else:
-            best_prompts_loaded = json.loads(open(best_prompts_path, "r", encoding='utf-8').read())
-        best_prompts_loaded[model] = self.find_best_prompts(result_path=prompts_result_path, model=model)
-        open(os.path.join(result_path, 'best_prompts.json'), "w").write(json.dumps(best_prompts_loaded, indent=4, sort_keys=True))
+            best_prompts_loaded = json.loads(open(best_prompts_path, "r", encoding = 'utf-8').read())
+        best_prompts_loaded[model] = self.find_best_prompts(result_path = prompts_result_path, model = model)
+        open(os.path.join(result_path, 'best_prompts.json'), "w").write(
+            json.dumps(best_prompts_loaded, indent = 4, sort_keys = True))
 
         ### Robustness Experiment!!
         print("\n#######################################")
@@ -1811,13 +1896,13 @@ class LLMAdapter:
 
         for p, s in prompts:
             self.run_trivial_robustness_experiments(
-                api_key=api_key,
-                temp=0.0,
-                model=model,
-                prompt=p,
-                scenario=s,
-                dataset_path=os.path.join(dataset_path, 'augmented', 'trivial'),
-                result_path=trivial_result_path
+                api_key = api_key,
+                temp = 0.0,
+                model = model,
+                prompt = p,
+                scenario = s,
+                dataset_path = os.path.join(dataset_path, 'augmented', 'trivial'),
+                result_path = trivial_result_path
             )
         print("\n#######################################")
         print("Trivial Cases done!!")
@@ -1833,13 +1918,13 @@ class LLMAdapter:
 
         for p, s in prompts:
             self.run_non_trivial_robustness_experiments(
-                api_key=api_key,
-                temp=0.0,
-                model=model,
-                prompt=p,
-                scenario=s,
-                dataset_path=os.path.join(dataset_path, 'augmented', 'non-trivial'),
-                result_path=non_trivial_result_path
+                api_key = api_key,
+                temp = 0.0,
+                model = model,
+                prompt = p,
+                scenario = s,
+                dataset_path = os.path.join(dataset_path, 'augmented', 'non-trivial'),
+                result_path = non_trivial_result_path
             )
         print("\n#######################################")
         print("Non-Trivial Cases done!!")
@@ -1858,13 +1943,13 @@ class LLMAdapter:
         scenarios = ['ZT', 'ZR', 'FT', 'FR']
         for sce in scenarios:
             self.run_real_world_experiments(
-                api_key=api_key,
-                temp=0.0,
-                model=model,
-                prompt=best_prompts_loaded[model][sce],
-                scenario=sce,
-                dataset_path=os.path.join(dataset_path, 'real-world'),
-                result_path=real_world_result_path
+                api_key = api_key,
+                temp = 0.0,
+                model = model,
+                prompt = best_prompts_loaded[model][sce],
+                scenario = sce,
+                dataset_path = os.path.join(dataset_path, 'real-world'),
+                result_path = real_world_result_path
             )
         print("\n#######################################")
         print("Real World Experiment done!!")
