@@ -1192,8 +1192,25 @@ class LLMAdapter:
                                 with open(os.path.join(dataset_path, 'embeddings', cwe.upper(), file.split(".")[0]),
                                           "rb") as f:
                                     gt_emb = pickle.load(f)
-                                cos_sim = self.cos_similarity(reason = results[cwe][file][prompt]["reason"],
-                                                              ground_truth = gt_emb)
+
+                                # for compatibility with old embeddings
+                                if len(gt_emb) == 12288:
+                                    print("Updating embeddings for {}".format(file))
+                                    resp = self.gpt_client.embeddings.create(
+                                        input = [gt],
+                                        model = "text-embedding-ada-002"
+                                    )
+                                    gt_new = resp.data[0].embedding
+                                    # save back
+                                    with open(os.path.join(dataset_path, 'embeddings', cwe.upper(), file.split(".")[0]),
+                                              "wb") as f:
+                                        pickle.dump(gt_new, f)
+                                    gt_emb = gt_new
+
+                                cos_sim = self.cos_similarity(
+                                    reason = results[cwe][file][prompt]["reason"],
+                                    ground_truth = gt_emb
+                                )
                                 if cos_sim is None:
                                     open(result_full_path, "w").write(json.dumps(results, indent = 4, sort_keys = True))
                                     return
