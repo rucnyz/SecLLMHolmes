@@ -1188,7 +1188,6 @@ class LLMAdapter:
 
                             # 2) Compute cosine similarity
                             if "cos_sim" not in results[cwe][file][prompt]:
-                                gt_emb = None
                                 with open(os.path.join(dataset_path, 'embeddings', cwe.upper(), file.split(".")[0]),
                                           "rb") as f:
                                     gt_emb = pickle.load(f)
@@ -1377,9 +1376,20 @@ class LLMAdapter:
 
                             # 2) Compute cosine similarity
                             if "cos_sim" not in results[scenario][A][cwe][file]:
-                                gt_emb = None
                                 with open(os.path.join(emb_path, cwe.upper(), file.split(".")[0]), "rb") as f:
                                     gt_emb = pickle.load(f)
+                                # for compatibility with old embeddings
+                                if len(gt_emb) == 12288:
+                                    print("Updating embeddings for {}".format(file))
+                                    resp = self.gpt_client.embeddings.create(
+                                        input = [gt],
+                                        model = "text-embedding-ada-002"
+                                    )
+                                    gt_new = resp.data[0].embedding
+                                    # save back
+                                    with open(os.path.join(emb_path, cwe.upper(), file.split(".")[0]), "wb") as f:
+                                        pickle.dump(gt_new, f)
+                                    gt_emb = gt_new
                                 cos_sim = self.cos_similarity(reason = results[scenario][A][cwe][file]["reason"],
                                                               ground_truth = gt_emb)
                                 if cos_sim is None:
@@ -1584,9 +1594,20 @@ class LLMAdapter:
 
                                 # 2) Compute cosine similarity
                                 if "cos_sim" not in results[scenario][A][t][cwe][file]:
-                                    gt_emb = None
                                     with open(os.path.join(emb_path, cwe.upper(), file.split(".")[0]), "rb") as f:
                                         gt_emb = pickle.load(f)
+                                    # for compatibility with old embeddings
+                                    if len(gt_emb) == 12288:
+                                        print("Updating embeddings for {}".format(file))
+                                        resp = self.gpt_client.embeddings.create(
+                                            input = [gt],
+                                            model = "text-embedding-ada-002"
+                                        )
+                                        gt_new = resp.data[0].embedding
+                                        # save back
+                                        with open(os.path.join(emb_path, cwe.upper(), file.split(".")[0]), "wb") as f:
+                                            pickle.dump(gt_new, f)
+                                        gt_emb = gt_new
                                     cos_sim = self.cos_similarity(
                                         reason = results[scenario][A][t][cwe][file]["reason"],
                                         ground_truth = gt_emb
@@ -1751,9 +1772,20 @@ class LLMAdapter:
 
                         # 2) Compute cosine similarity
                         if "cos_sim" not in results[project][cve][file][scenario]:
-                            gt_emb = None
                             with open(emb_path, "rb") as f:
                                 gt_emb = pickle.load(f)
+                            # for compatibility with old embeddings
+                            if len(gt_emb) == 12288:
+                                print("Updating embeddings for {}".format(file))
+                                resp = self.gpt_client.embeddings.create(
+                                    input = [gt],
+                                    model = "text-embedding-ada-002"
+                                )
+                                gt_new = resp.data[0].embedding
+                                # save back
+                                with open(emb_path, "wb") as f:
+                                    pickle.dump(gt_new, f)
+                                gt_emb = gt_new
                             cos_sim = self.cos_similarity(
                                 reason = results[project][cve][file][scenario]["reason"],
                                 ground_truth = gt_emb
